@@ -215,6 +215,15 @@
 
     <Border MouseDown="OnMouseDown" Style="{DynamicResource WindowBorderStyle}">
         <StackPanel Orientation="Vertical">
+            <!-- Custom Header -->
+            <TextBlock x:Name="WizHeader" 
+                       Text="Wiz Flow Launcher" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center" 
+                       FontSize="18" 
+                       FontWeight="Bold" 
+                       Margin="0,8,0,8" 
+                       Foreground="{DynamicResource PrimaryTextBrush}" />
             <Grid x:Name="QueryBoxArea">
                 <Border MinHeight="30" Style="{DynamicResource QueryBoxBgStyle}">
                     <Grid>
