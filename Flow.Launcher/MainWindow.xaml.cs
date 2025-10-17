@@ -61,6 +61,9 @@ namespace Flow.Launcher
 
         // Window Event: Key Event
         private bool _isArrowKeyPressed = false;
+        
+        // Navigation Container State
+        private bool _isNavigationContainerFocused = false;
 
         // Window Sound Effects
         private MediaPlayer _animationSoundWMP;
@@ -461,6 +464,23 @@ namespace Flow.Launcher
                         _viewModel.LoadContextMenuCommand.Execute(null);
                         e.Handled = true;
                     }
+                    else if (QueryTextBox?.CaretIndex == QueryTextBox?.Text?.Length && !_isNavigationContainerFocused)
+                    {
+                        // Navigate to the navigation container
+                        try
+                        {
+                            if (NavigationContainer?.IsLoaded == true)
+                            {
+                                NavigationContainer.Focus();
+                                Keyboard.Focus(NavigationContainer);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Navigation to container failed: {ex.Message}");
+                        }
+                        e.Handled = true;
+                    }
                     break;
                 case Key.Left:
                     if (!_viewModel.QueryResultsSelected() && QueryTextBox.CaretIndex == 0)
@@ -505,6 +525,89 @@ namespace Flow.Launcher
             if (_isArrowKeyPressed)
             {
                 e.Handled = true; // Ignore Mouse Hover when press Arrowkeys
+            }
+        }
+
+        #endregion
+
+        #region Navigation Container Events
+
+        private void NavigationContainer_KeyDown(object sender, KeyEventArgs e)
+        {
+            try
+            {
+                switch (e.Key)
+                {
+                    case Key.Left:
+                        // Navigate back to search box
+                        if (QueryTextBox?.IsLoaded == true)
+                        {
+                            QueryTextBox.Focus();
+                            Keyboard.Focus(QueryTextBox);
+                        }
+                        e.Handled = true;
+                        break;
+                    case Key.Right:
+                        // Stay in navigation container or implement additional navigation
+                        e.Handled = true;
+                        break;
+                    case Key.Enter:
+                        // Implement action for navigation container
+                        e.Handled = true;
+                        break;
+                    case Key.Escape:
+                        // Go back to search box
+                        if (QueryTextBox?.IsLoaded == true)
+                        {
+                            QueryTextBox.Focus();
+                            Keyboard.Focus(QueryTextBox);
+                        }
+                        e.Handled = true;
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception to prevent crashes
+                System.Diagnostics.Debug.WriteLine($"NavigationContainer_KeyDown error: {ex.Message}");
+            }
+        }
+
+        private void NavigationContainer_GotFocus(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _isNavigationContainerFocused = true;
+                if (sender is Border border)
+                {
+                    // Change appearance when focused
+                    border.BorderBrush = new SolidColorBrush(Colors.DodgerBlue);
+                    border.Background = new SolidColorBrush(Color.FromArgb(40, 30, 144, 255)); // Semi-transparent blue
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception to prevent crashes
+                System.Diagnostics.Debug.WriteLine($"NavigationContainer_GotFocus error: {ex.Message}");
+            }
+        }
+
+        private void NavigationContainer_LostFocus(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _isNavigationContainerFocused = false;
+                if (sender is Border border)
+                {
+                    // Reset appearance when not focused - use safer approach
+                    border.BorderBrush = new SolidColorBrush(Colors.Gray);
+                    border.Background = new SolidColorBrush(Colors.Transparent);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception to prevent crashes
+                System.Diagnostics.Debug.WriteLine($"NavigationContainer_LostFocus error: {ex.Message}");
             }
         }
 
