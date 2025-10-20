@@ -225,13 +225,8 @@
                        Margin="0,8,0,8" 
                        Foreground="{DynamicResource PrimaryTextBrush}" />
             <Grid x:Name="QueryBoxArea">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                
                 <!-- Main Search Area -->
-                <Border Grid.Column="0" MinHeight="30" Style="{DynamicResource QueryBoxBgStyle}">
+                <Border MinHeight="30" Style="{DynamicResource QueryBoxBgStyle}">
                     <Grid>
                         <TextBox
                             x:Name="QueryTextPlaceholderBox"
@@ -309,29 +304,6 @@
                         </TextBox>
                     </Grid>
                 </Border>
-                
-                <!-- Navigation Container -->
-                <Border x:Name="NavigationContainer" 
-                        Grid.Column="1" 
-                        Width="60" 
-                        Height="60" 
-                        Margin="10,0,0,0" 
-                        CornerRadius="5" 
-                        BorderThickness="2" 
-                        BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
-                        Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-                        Focusable="True"
-                        KeyDown="NavigationContainer_KeyDown"
-                        GotFocus="NavigationContainer_GotFocus"
-                        LostFocus="NavigationContainer_LostFocus">
-                    <Grid>
-                        <TextBlock Text="⊞" 
-                                   HorizontalAlignment="Center" 
-                                   VerticalAlignment="Center" 
-                                   FontSize="24" 
-                                   Foreground="{DynamicResource PrimaryTextBrush}" />
-                    </Grid>
-                </Border>
 
                 <StackPanel
                     x:Name="ClockPanel"
@@ -387,6 +359,75 @@
                     Y1="0"
                     Y2="0" />
             </Grid>
+
+            <!-- Window List Container - positioned below search area -->
+            <Border x:Name="WindowListContainer" 
+                    Width="400" 
+                    MaxHeight="300"
+                    Margin="0,8,0,0" 
+                    CornerRadius="5" 
+                    BorderThickness="2" 
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
+                    Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+                    Focusable="True"
+                    KeyDown="WindowListContainer_KeyDown"
+                    GotFocus="WindowListContainer_GotFocus"
+                    LostFocus="WindowListContainer_LostFocus"
+                    Visibility="Collapsed">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Header -->
+                    <TextBlock Grid.Row="0" 
+                               Text="Open Windows" 
+                               HorizontalAlignment="Center" 
+                               VerticalAlignment="Center" 
+                               FontSize="14" 
+                               FontWeight="Bold"
+                               Margin="8,8,8,4"
+                               Foreground="{DynamicResource PrimaryTextBrush}" />
+                    
+                    <!-- Window List -->
+                    <ScrollViewer Grid.Row="1" 
+                                  VerticalScrollBarVisibility="Auto" 
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Margin="4">
+                        <ListBox x:Name="WindowListBox"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 SelectionChanged="WindowListBox_SelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="4,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <!-- Window Icon -->
+                                        <Rectangle Grid.Column="0" 
+                                                   Width="16" 
+                                                   Height="16" 
+                                                   Margin="0,0,8,0"
+                                                   Fill="{DynamicResource AccentBrush}" />
+                                        
+                                        <!-- Window Title -->
+                                        <TextBlock Grid.Column="1" 
+                                                   Text="{Binding Title}" 
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding Title}"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
 
             <Grid x:Name="MiddleSeparatorArea" ClipToBounds="True">
                 <ContentControl>

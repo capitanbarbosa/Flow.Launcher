@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Media;
@@ -31,6 +32,12 @@ using DataObject = System.Windows.DataObject;
 using Key = System.Windows.Input.Key;
 using MouseButtons = System.Windows.Forms.MouseButtons;
 using NotifyIcon = System.Windows.Forms.NotifyIcon;
+using System.Collections.ObjectModel;
+using System.Text;
+using System.Runtime.InteropServices;
+using Windows.Win32;
+using Windows.Win32.Foundation;
+using Windows.Win32.UI.WindowsAndMessaging;
 
 namespace Flow.Launcher
 {
@@ -81,6 +88,43 @@ namespace Flow.Launcher
 
         // IDisposable
         private bool _disposed = false;
+
+        #endregion
+
+        #region Window Info Class and Win32 APIs
+
+        public class WindowInfo
+        {
+            public string Title { get; set; }
+            public IntPtr Handle { get; set; }
+        }
+
+        // Win32 API delegate for EnumWindows
+        private delegate bool EnumWindowsCallback(IntPtr hWnd, IntPtr lParam);
+
+        // Win32 API imports
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(EnumWindowsCallback lpEnumFunc, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder strText, int maxCount);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetWindowTextLength(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+        private const int SW_RESTORE = 9;
 
         #endregion
 
@@ -466,18 +510,19 @@ namespace Flow.Launcher
                     }
                     else if (QueryTextBox?.CaretIndex == QueryTextBox?.Text?.Length && !_isNavigationContainerFocused)
                     {
-                        // Navigate to the navigation container
+                        // Show and navigate to the window list container
                         try
                         {
-                            if (NavigationContainer?.IsLoaded == true)
+                            if (WindowListContainer?.IsLoaded == true)
                             {
-                                NavigationContainer.Focus();
-                                Keyboard.Focus(NavigationContainer);
+                                WindowListContainer.Visibility = Visibility.Visible;
+                                WindowListContainer.Focus();
+                                Keyboard.Focus(WindowListContainer);
                             }
                         }
                         catch (Exception ex)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Navigation to container failed: {ex.Message}");
+                            System.Diagnostics.Debug.WriteLine($"Navigation to window list failed: {ex.Message}");
                         }
                         e.Handled = true;
                     }
@@ -608,6 +653,198 @@ namespace Flow.Launcher
             {
                 // Log the exception to prevent crashes
                 System.Diagnostics.Debug.WriteLine($"NavigationContainer_LostFocus error: {ex.Message}");
+            }
+        }
+
+        #endregion
+
+        #region Window List Container Events
+
+        private void WindowListContainer_KeyDown(object sender, KeyEventArgs e)
+        {
+            try
+            {
+                switch (e.Key)
+                {
+                    case Key.Left:
+                        // Navigate back to search box
+                        if (QueryTextBox?.IsLoaded == true)
+                        {
+                            WindowListContainer.Visibility = Visibility.Collapsed;
+                            QueryTextBox.Focus();
+                            Keyboard.Focus(QueryTextBox);
+                        }
+                        e.Handled = true;
+                        break;
+                    case Key.Up:
+                        // Navigate up in the window list
+                        if (WindowListBox.SelectedIndex > 0)
+                        {
+                            WindowListBox.SelectedIndex--;
+                        }
+                        e.Handled = true;
+                        break;
+                    case Key.Down:
+                        // Navigate down in the window list
+                        if (WindowListBox.SelectedIndex < WindowListBox.Items.Count - 1)
+                        {
+                            WindowListBox.SelectedIndex++;
+                        }
+                        e.Handled = true;
+                        break;
+                    case Key.Enter:
+                        // Switch to selected window
+                        SwitchToSelectedWindow();
+                        e.Handled = true;
+                        break;
+                    case Key.Escape:
+                        // Hide window list and go back to search box
+                        WindowListContainer.Visibility = Visibility.Collapsed;
+                        if (QueryTextBox?.IsLoaded == true)
+                        {
+                            QueryTextBox.Focus();
+                            Keyboard.Focus(QueryTextBox);
+                        }
+                        e.Handled = true;
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WindowListContainer_KeyDown error: {ex.Message}");
+            }
+        }
+
+        private void WindowListContainer_GotFocus(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Border border)
+                {
+                    border.BorderBrush = new SolidColorBrush(Colors.DodgerBlue);
+                    border.Background = new SolidColorBrush(Color.FromArgb(40, 30, 144, 255));
+                }
+                
+                // Load open windows when container gets focus
+                LoadOpenWindows();
+                
+                // Select first item if available
+                if (WindowListBox.Items.Count > 0)
+                {
+                    WindowListBox.SelectedIndex = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WindowListContainer_GotFocus error: {ex.Message}");
+            }
+        }
+
+        private void WindowListContainer_LostFocus(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is Border border)
+                {
+                    border.BorderBrush = new SolidColorBrush(Colors.Gray);
+                    border.Background = new SolidColorBrush(Colors.Transparent);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WindowListContainer_LostFocus error: {ex.Message}");
+            }
+        }
+
+        private void WindowListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Handle selection change if needed
+        }
+
+        private void LoadOpenWindows()
+        {
+            try
+            {
+                WindowListBox.Items.Clear();
+                var windows = new List<WindowInfo>();
+                
+                // Enumerate all top-level windows
+                EnumWindows((hWnd, lParam) =>
+                {
+                    // Skip if window is not visible
+                    if (!IsWindowVisible(hWnd))
+                        return true;
+                    
+                    // Get window title length
+                    int length = GetWindowTextLength(hWnd);
+                    if (length <= 0)
+                        return true;
+                    
+                    // Get window title
+                    var title = new StringBuilder(length + 1);
+                    GetWindowText(hWnd, title, title.Capacity);
+                    string windowTitle = title.ToString();
+                    
+                    // Skip windows without meaningful titles
+                    if (string.IsNullOrWhiteSpace(windowTitle))
+                        return true;
+                    
+                    // Skip the Flow.Launcher window itself
+                    if (windowTitle.Contains("Flow Launcher") || windowTitle.Contains("Wiz Flow Launcher"))
+                        return true;
+                    
+                    // Get process ID to filter out some system windows
+                    GetWindowThreadProcessId(hWnd, out uint processId);
+                    
+                    // Skip some common system windows
+                    if (windowTitle == "Program Manager" || 
+                        windowTitle == "Desktop" ||
+                        windowTitle.StartsWith("Microsoft Text Input Application"))
+                        return true;
+                    
+                    windows.Add(new WindowInfo 
+                    { 
+                        Title = windowTitle, 
+                        Handle = hWnd 
+                    });
+                    
+                    return true; // Continue enumeration
+                }, IntPtr.Zero);
+                
+                // Sort windows by title and add to list
+                foreach (var window in windows.OrderBy(w => w.Title))
+                {
+                    WindowListBox.Items.Add(window);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadOpenWindows error: {ex.Message}");
+            }
+        }
+
+        private void SwitchToSelectedWindow()
+        {
+            try
+            {
+                if (WindowListBox.SelectedItem is WindowInfo selectedWindow)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Switching to window: {selectedWindow.Title}");
+                    
+                    // First restore the window if it's minimized
+                    ShowWindow(selectedWindow.Handle, SW_RESTORE);
+                    
+                    // Then bring it to the foreground
+                    SetForegroundWindow(selectedWindow.Handle);
+                    
+                    // Hide the window list and main window
+                    WindowListContainer.Visibility = Visibility.Collapsed;
+                    _viewModel.Hide();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SwitchToSelectedWindow error: {ex.Message}");
             }
         }
 
