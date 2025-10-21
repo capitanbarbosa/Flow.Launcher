@@ -399,7 +399,8 @@
                                  Background="Transparent"
                                  BorderThickness="0"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 SelectionChanged="WindowListBox_SelectionChanged">
+                                 SelectionChanged="WindowListBox_SelectionChanged"
+                                 MouseDoubleClick="WindowListBox_MouseDoubleClick">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Grid Margin="4,2">

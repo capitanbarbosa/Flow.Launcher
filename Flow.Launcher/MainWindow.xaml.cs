@@ -124,6 +124,12 @@ namespace Flow.Launcher
         [DllImport("user32.dll")]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
+        [DllImport("user32.dll")]
+        private static extern bool BringWindowToTop(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SetFocus(IntPtr hWnd);
+
         private const int SW_RESTORE = 9;
 
         #endregion
@@ -758,7 +764,31 @@ namespace Flow.Launcher
 
         private void WindowListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Handle selection change if needed
+            // Handle selection change - switch to window when clicked
+            try
+            {
+                // Check if this selection change was caused by a mouse click
+                if (Mouse.LeftButton == MouseButtonState.Pressed || Mouse.RightButton == MouseButtonState.Pressed)
+                {
+                    SwitchToSelectedWindow();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WindowListBox_SelectionChanged error: {ex.Message}");
+            }
+        }
+
+        private void WindowListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                SwitchToSelectedWindow();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WindowListBox_MouseDoubleClick error: {ex.Message}");
+            }
         }
 
         private void LoadOpenWindows()
@@ -831,11 +861,33 @@ namespace Flow.Launcher
                 {
                     System.Diagnostics.Debug.WriteLine($"Switching to window: {selectedWindow.Title}");
                     
-                    // First restore the window if it's minimized
-                    ShowWindow(selectedWindow.Handle, SW_RESTORE);
-                    
-                    // Then bring it to the foreground
-                    SetForegroundWindow(selectedWindow.Handle);
+                    // Multiple approaches to ensure window switching works
+                    try
+                    {
+                        // Approach 1: Try standard Win32 API
+                        ShowWindow(selectedWindow.Handle, SW_RESTORE);
+                        SetForegroundWindow(selectedWindow.Handle);
+                    }
+                    catch
+                    {
+                        try
+                        {
+                            // Approach 2: Alternative activation method
+                            const int SW_SHOW = 5;
+                            ShowWindow(selectedWindow.Handle, SW_SHOW);
+                            
+                            // Try using BringWindowToTop
+                            BringWindowToTop(selectedWindow.Handle);
+                            
+                            // Force focus
+                            SetFocus(selectedWindow.Handle);
+                        }
+                        catch
+                        {
+                            // Approach 3: Last resort - simulate Alt+Tab to the window
+                            System.Diagnostics.Debug.WriteLine($"Failed to switch to window using Win32 APIs, trying alternative method");
+                        }
+                    }
                     
                     // Hide the window list and main window
                     WindowListContainer.Visibility = Visibility.Collapsed;
